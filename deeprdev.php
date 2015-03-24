@@ -48,18 +48,14 @@ class Developer_User_Table extends WP_List_Table {
         }
 
         // watch out for security risk... TODO
-        return sprintf('<a href="?page=%s&action=%s&user=%s">%s</a>',$_REQUEST['page'],'toggle',$user->ID, $link_text);
+		return sprintf('<a href="?page=%s&action=%s&user=%s">%s</a>',$_REQUEST['page'],'toggle',$user->ID, $link_text);
       case 'environment':
         return "Environment noch nicht erstellt";
       default:
         return $user->$column_name;
     }
   }
-
-
 }
-
-
 
 // show function...
 function show_page(){
@@ -76,22 +72,44 @@ function show_page(){
   $usertable = new Developer_User_Table();
   $usertable->configure_table();
   $usertable->display();
-  $copy_dir = isset($_GET['copy']);
-  
-  $current_user = wp_get_current_user();
-  echo($current_user->firstname);
-  
-  if($copy_dir == 'true')
-	{
-		copy_parent_theme();
+
+  $text_status = "Give Developer Status";
+  $user = wp_get_current_user();
+  if($user->has_cap('developer')){
+		$text_status = "Remove Developer Status";
 	}
+	//"http://www.digitalhost.de/yd/underscores/wp-admin/admin.php?page=deepr"
   ?>
   
-  <div><form action="" method="post">
-
-<input name="save" type="submit" value="copy" /></div>;
-  </div>
-  <?php
+  <!--<div><form action="" method="post">
+	<input name="save" type="submit" value="Copy parent theme" /></div>
+  </div> --> 
+ 
+  
+  <!--<div><form action="" method="post">
+	<a href=http://www.digitalhost.de/yd/underscores/wp-admin/admin.php><input name="caps" type="submit" value="<?= $text_status ?>"></a> </div> -->
+  
+ <div><form action="http://www.digitalhost.de/yd/underscores/wp-admin/admin.php?page=deepr" method="post">
+	<input name="update" type="submit" value="Update environment" /></div>
+  
+ 
+  
+  <?php 
+  //$user = wp_get_current_user();
+  
+  if(isset($_GET['action'])){
+	if($text_status == "Give Developer Status")
+	{
+		$user->add_cap('developer');
+		$text_status = "Remove Developer Status";
+	}
+	else{
+		$user->remove_cap('developer');
+		$text_status = "Give Developer Status";
+		}
+  }
+  
+  
 }
 
 function check_cred(){
@@ -101,8 +119,8 @@ function check_cred(){
 	
 	$form_fields = array ('save'); // this is a list of the form field contents I want passed along between page views
 	$method = '';
-	
-	if (isset($_POST['save'])){
+	$user = wp_get_current_user();
+	if (isset($_POST['save']) && $user->has_cap('developer')){
 		$url = 'themes.php?page=otto';
 		if (false === ($creds = request_filesystem_credentials($url, $method, false, false, $form_fields) ) ) {
 		
@@ -123,7 +141,41 @@ function check_cred(){
 		//global $wp_filesystem;
 		copy_parent_theme();
 	}
+	
+	
+	
+	$form_fields = array('update');
+	$method = '';
+	
+	if (isset($_POST['update'])  && $user->has_cap('developer')){
+		$url = 'themes.php?page=otto';
+		if (false === ($creds = request_filesystem_credentials($url, $method, false, false, $form_fields) ) ) {
+		
+			// if we get here, then we don't have credentials yet,
+			// but have just produced a form for the user to fill in, 
+			// so stop processing for now
+			
+			return true; // stop the normal page form from displaying
+		}
+			
+		// now we have some credentials, try to get the wp_filesystem running
+		if ( ! WP_Filesystem($creds) ) {
+			// our credentials were no good, ask the user for them again
+			request_filesystem_credentials($url, $method, true, false, $form_fields);
+			return true;
+		}
+		
+		//global $wp_filesystem;
+		update_folder();
+	}
+	
+	
+	
 }
+
+
+
+
 
 // set up a page in the menu
 function add_deepr_page(){
@@ -155,8 +207,7 @@ add_filter('stylesheet', 'change_current_theme_get');
 
 
 function copy_parent_theme(){
-	//global $current_user;
-	//global $wp_filesystem;
+	echo "copy parent theme..";
 	$user = wp_get_current_user();
 	
 	//var_dump($wp_filesystem);
@@ -173,7 +224,26 @@ function copy_parent_theme(){
 	}
 }
 
+function update_folder() {
+	global $wp_filesystem;
+	$user = wp_get_current_user();	
+	$filename = get_theme_root() .  "/environment-".$user->user_login;
+	
+	if(is_user_logged_in()){
+	
+		// Delete last version of child theme 
+		if(file_exists($filename))
+		{
+			$wp_filesystem->delete($filename, true);
+			echo "deleting folder...";
+		}
 
+		//copy new version
+		wp_mkdir_p($filename);
+		copy_dir(get_template_directory(), $filename);			
+		echo "making the new dir";
+	}
+}
 
 
 

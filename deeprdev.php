@@ -191,8 +191,7 @@ function change_current_theme_get($current){
   // query vars are not set when template directory is set, so we need to use get. but possible security implications-> sanitize input
   
   if(is_user_logged_in()){
-	  $user = wp_get_current_user();
-	  $newtheme = isset($_GET['developer']) ?  "/environment-".$user->user_login: "";
+	  $newtheme = isset($_GET['developer']) ?  "environment-".$_GET['developer']: "";
 	  if (!empty($newtheme)){
 		if ( validate_file($newtheme) == 0 && file_exists(get_theme_root()."/".$newtheme) ){
 		  return $newtheme;

@@ -48,7 +48,7 @@ class Developer_User_Table extends WP_List_Table {
         }
 
         // watch out for security risk... TODO
-		return sprintf('<a href="?page=%s&action=%s&user=%s">%s</a>',$_REQUEST['page'],'toggle',$user->ID, $link_text);
+		return sprintf('<a href="?page=%s&action=%s&user=%s">%s</a><br><a href="?page=%s&action=%s&user=%s">Update environment</a><br><a href="?page=%s&action=%s&user=%s">Delete Env</a><br><a href="?page=%s&action=%s&user=%s">Create a new environment</a>',$_REQUEST['page'],'devON',$user->ID, $link_text,$_REQUEST['page'],'update',$user->ID,$_REQUEST['page'],'delete',$user->ID,$_REQUEST['page'],'create',$user->ID);
       case 'environment':
         return "Environment noch nicht erstellt";
       default:
@@ -81,23 +81,19 @@ function show_page(){
 	//"http://www.digitalhost.de/yd/underscores/wp-admin/admin.php?page=deepr"
   ?>
   
-  <!--<div><form action="" method="post">
-	<input name="save" type="submit" value="Copy parent theme" /></div>
-  </div> --> 
- 
+
   
-  <!--<div><form action="" method="post">
-	<a href=http://www.digitalhost.de/yd/underscores/wp-admin/admin.php><input name="caps" type="submit" value="<?= $text_status ?>"></a> </div> -->
-  
+ <!--<div><form action="http://www.digitalhost.de/yd/underscores/wp-admin/admin.php?page=deepr" method="post">
+	<input name="update" type="submit" value="Update environment" /></div> -->
+
  <div><form action="http://www.digitalhost.de/yd/underscores/wp-admin/admin.php?page=deepr" method="post">
-	<input name="update" type="submit" value="Update environment" /></div>
-  
+	<input name="allUsers" type="submit" value="Update environment All Users" /></div>	
  
   
   <?php 
   //$user = wp_get_current_user();
   
-  if(isset($_GET['action'])){
+  if(isset($_GET['action']) && $_GET['action'] == 'devON'){
 	if($text_status == "Give Developer Status")
 	{
 		$user->add_cap('developer');
@@ -109,18 +105,19 @@ function show_page(){
 		}
   }
   
+ 
   
 }
 
 function check_cred(){
-	if (empty($_POST)) return false;
+	//if (empty($_POST)) return false;
 	
 	//check_admin_referer();
 	
-	$form_fields = array ('save'); // this is a list of the form field contents I want passed along between page views
+	$form_fields = array('allUsers');
 	$method = '';
-	$user = wp_get_current_user();
-	if (isset($_POST['save']) && $user->has_cap('developer')){
+	
+	if (isset($_POST['allUsers'])){
 		$url = 'themes.php?page=otto';
 		if (false === ($creds = request_filesystem_credentials($url, $method, false, false, $form_fields) ) ) {
 		
@@ -139,22 +136,20 @@ function check_cred(){
 		}
 		
 		//global $wp_filesystem;
-		copy_parent_theme();
+		update_all_users();
 	}
 	
 	
-	
-	$form_fields = array('update');
+	$form_fields = array('user');
 	$method = '';
 	
-	if (isset($_POST['update'])  && $user->has_cap('developer')){
+	if (isset($_GET['user']) && isset($_GET['action'])){
 		$url = 'themes.php?page=otto';
 		if (false === ($creds = request_filesystem_credentials($url, $method, false, false, $form_fields) ) ) {
 		
 			// if we get here, then we don't have credentials yet,
 			// but have just produced a form for the user to fill in, 
 			// so stop processing for now
-			
 			return true; // stop the normal page form from displaying
 		}
 			
@@ -165,11 +160,21 @@ function check_cred(){
 			return true;
 		}
 		
+		
 		//global $wp_filesystem;
-		update_folder();
+		if($_GET['action'] == "update"){
+			update_env_by_ID($_GET['user']);
+		}
+		 
+		else if($_GET['action']== "delete"){
+			delete_by_ID($_GET['user']);
+		}
+		
+		else if($_GET['action']== "create"){
+			create_by_ID($_GET['user']);
+		}
+	
 	}
-	
-	
 	
 }
 
@@ -201,7 +206,7 @@ function change_current_theme_get($current){
 	  return $current;
 	}
 }
-//add_filter('template', 'change_current_theme_get');
+add_filter('template', 'change_current_theme_get');
 add_filter('stylesheet', 'change_current_theme_get');
 
 
@@ -246,6 +251,68 @@ function update_folder() {
 		echo "making the new dir";
 	}
 }
+
+function update_all_users(){
+	global $wp_filesystem;
+	$users = get_users();
+	echo "updating all users theme...";
+	foreach ($users as $user) {
+		$filename = get_theme_root() . "/environment-" . $user->user_login;
+		if(file_exists($filename)){
+			$wp_filesystem->delete($filename,true);
+			wp_mkdir_p($filename);
+			copy_dir(get_template_directory(), $filename);			
+		}
+	}
+}
+
+/*
+*Generic function to update environment by id
+*/
+function update_env_by_ID($ID){
+	global $wp_filesystem;
+	$user = get_user_by('id', $ID);
+	$filename = get_theme_root() . "/environment-" . $user->user_login;
+	if(file_exists($filename)){
+		$wp_filesystem->delete($filename,true);
+		echo "deleting child id theme...";
+		wp_mkdir_p($filename);
+		copy_dir(get_template_directory(), $filename);			
+		echo "making the new dir...";
+	}
+}
+
+
+/*
+*Generic function to delete environment by id
+*/
+function delete_by_ID($ID){
+	global $wp_filesystem;
+	$user = get_user_by('id', $ID);
+	$filename = get_theme_root() . "/environment-" . $user->user_login;
+	if(file_exists($filename)){
+		$wp_filesystem->delete($filename,true);
+		echo "deleting child id theme...";	
+	}
+}
+
+
+/*
+*Generic function to create a new environment for a user
+*/
+function create_by_ID($ID){
+	global $wp_filesystem;
+	$user = get_user_by('id', $ID);
+	$filename = get_theme_root() . "/environment-" . $user->user_login;
+	if(!file_exists($filename)){
+		wp_mkdir_p($filename);
+		copy_dir(get_template_directory(), $filename);			
+		echo "creating a new env...";
+	}
+}
+
+
+
 
 
 

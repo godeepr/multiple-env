@@ -18,7 +18,7 @@ if( ! class_exists( 'WP_List_Table' ) ) {
 
 
 //require_once('workspace.php');
-//include('ajax_methods.php');
+include('environmentObject.php');
 
 
 // create the table object which lists all user, in order to give them developer capabilities
@@ -40,6 +40,8 @@ class Developer_User_Table extends WP_List_Table {
   }
 
   function column_default($user, $column_name){
+	$envObj = new EnvObj($user->ID);
+	
     switch($column_name){
       case 'status':
         $link_text = 'Give Developer Status';
@@ -48,8 +50,20 @@ class Developer_User_Table extends WP_List_Table {
         }
 
         // watch out for security risk... TODO
-		return sprintf('<a href="?page=%s&action=%s&user=%s">%s</a><br><a href="?page=%s&action=%s&user=%s">Update environment</a><br><a href="?page=%s&action=%s&user=%s">Delete Env</a><br><a href="?page=%s&action=%s&user=%s">Create a new environment</a>',$_REQUEST['page'],'devON',$user->ID, $link_text,$_REQUEST['page'],'update',$user->ID,$_REQUEST['page'],'delete',$user->ID,$_REQUEST['page'],'create',$user->ID);
-      case 'environment':
+		//return sprintf('<a href="?page=%s&action=%s&user=%s">%s</a><br><a href="?page=%s&action=%s&user=%s">Update environment</a><br><a href="?page=%s&action=%s&user=%s">Delete Env</a><br><a href="?page=%s&action=%s&user=%s">Create a new environment</a>',$_REQUEST['page'],'devON',$user->ID, $link_text,$_REQUEST['page'],'update',$user->ID,$_REQUEST['page'],'delete',$user->ID,$_REQUEST['page'],'create',$user->ID);
+		 
+		 $filename = get_theme_root() . "/environment-" . $user->user_login;
+		 if(file_exists($filename)){
+			$envObj->wasCreated();
+		 }
+		 else{
+			$envObj->wasNotCreated();
+		 }
+		 
+		 
+		 
+		 return $envObj->getMethods();	
+	  case 'environment':
         return "Environment noch nicht erstellt";
       default:
         return $user->$column_name;
@@ -252,6 +266,11 @@ function update_folder() {
 	}
 }
 
+
+/*
+* Updates environment for all the users
+*/
+
 function update_all_users(){
 	global $wp_filesystem;
 	$users = get_users();
@@ -279,6 +298,7 @@ function update_env_by_ID($ID){
 		wp_mkdir_p($filename);
 		copy_dir(get_template_directory(), $filename);			
 		echo "making the new dir...";
+		change_name_theme_child($user);
 	}
 }
 
@@ -308,9 +328,22 @@ function create_by_ID($ID){
 		wp_mkdir_p($filename);
 		copy_dir(get_template_directory(), $filename);			
 		echo "creating a new env...";
+		change_name_theme_child($user);
 	}
 }
 
+
+function change_name_theme_child($user){
+	$new_filename = "Theme Name: environment-" . $user->user_login;
+	$css_file = get_theme_root() . "/environment-" . $user->user_login . "/style.css";
+	$contents_array = explode("\n", file_get_contents($css_file));
+	$contents =  file_get_contents($css_file);
+	
+	
+	$contents = str_replace($contents_array[1], $new_filename, $contents);
+	//file_put_contents($css_file, $contents[0] . "\n" . $new_filename . "\n" . $contents[1]);
+	file_put_contents($css_file, $contents);
+}
 
 
 
